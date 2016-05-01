@@ -1,9 +1,15 @@
 import os
-from scipy import misc
-path = "/home/rolnik/Documents/cuda"
-image = misc.imread(os.path.join(path, "example.bmp"), flatten=0, mode="RGB")
+import sys
 
-with open('pixels', 'w+') as file:
+from scipy import misc
+
+path = sys.argv[1]
+filename = sys.argv[2]
+tmp_pixels = sys.argv[3]
+
+image = misc.imread(os.path.join(path, filename), flatten=0, mode="RGB")
+
+with open(tmp_pixels, 'w+') as file:
     for y in range(0, image.shape[0]):
         for x in range(0, image.shape[1]): 
             file.write(str(image[y][x][0]) + ',')
