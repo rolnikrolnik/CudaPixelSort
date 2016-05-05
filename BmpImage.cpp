@@ -137,6 +137,11 @@ RGBTRIPLE BmpImage::GetPixel24(int x, int y)
 	return ret;
 }
 
+int BmpImage::GetPixel24AsInt(int x, int y)
+{
+	return ParseRgbTripleToInt(GetPixel24(x, y));
+}
+
 void BmpImage::SetPixel8(int x, int y, BYTE val)
 {
 	if(mBitmap == NULL)
@@ -297,3 +302,18 @@ void BmpImage::SetRawData(std::vector<BYTE>& rawData)
 		}
 	}
 }
+
+int BmpImage::ParseRgbTripleToInt(RGBTRIPLE pixel){
+    return (pixel.rgbtRed << 16) + (pixel.rgbtGreen << 8) + pixel.rgbtBlue;
+}
+
+RGBTRIPLE BmpImage::ParseIntToRgbTriple(int pixelValue){
+    RGBTRIPLE pixel = 
+    {
+    	pixelValue & BLUE_MASK, // blue
+    	(pixelValue & GREEN_MASK) >> 8, // green
+    	(pixelValue & RED_MASK) >> 16 // red
+    };
+    return pixel;
+}
+

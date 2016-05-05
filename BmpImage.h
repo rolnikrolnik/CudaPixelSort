@@ -74,6 +74,10 @@ typedef struct tagBITMAPINFO
 #define BI_JPEG       4L
 #define BI_PNG        5L
 
+#define RED_MASK (255 << 16)
+#define GREEN_MASK (255 << 8)
+#define BLUE_MASK 255
+
 class BmpImage
 {
 public:
@@ -86,6 +90,7 @@ public:
 	bool GetPixel1(int x, int y);
 	BYTE GetPixel8(int x, int y);
 	RGBTRIPLE GetPixel24(int x, int y);
+	int GetPixel24AsInt(int x, int y);
 	void SetPixel8(int x, int y, BYTE val);
 	void SetPixel24(int x, int y, RGBTRIPLE val);
 	int GetWidth();
@@ -96,6 +101,8 @@ public:
 	bool ConvertToGreyScale(BmpImage& other);
 	std::vector<BYTE> GetRawData();
 	void SetRawData(std::vector<BYTE>& rawData);
+	RGBTRIPLE ParseIntToRgbTriple(int);
+	int ParseRgbTripleToInt(RGBTRIPLE);
 
 private:
 	BITMAPFILEHEADER mHeader;
