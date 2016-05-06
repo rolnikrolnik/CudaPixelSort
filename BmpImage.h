@@ -93,6 +93,7 @@ public:
 	int GetPixel24AsInt(int x, int y);
 	void SetPixel8(int x, int y, BYTE val);
 	void SetPixel24(int x, int y, RGBTRIPLE val);
+	void SetPixel24AsInt(int x, int y, int val);
 	int GetWidth();
 	int GetHeight();
 	int GetSize();

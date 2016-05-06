@@ -15,7 +15,7 @@ RGBTRIPLE whiteRgb = { 255, 255, 255};
 // TODO: think about this threshold - wtf is going on
 int threshold = 10010000;
 
-void sortPixels(BmpImage *image){
+void sortPixelsCpu(BmpImage *image){
     for (int i = 0; i < image->GetHeight(); ++i)
     {
         sortRow(image, i);
@@ -46,8 +46,7 @@ void sortRow(BmpImage *image, int row){
 
         for (int i = 0; i < pixelsToSortLength; ++i)
         {
-            // TODO : SetPixel24AsInt
-            image->SetPixel24(startingX + i, row, image->ParseIntToRgbTriple(pixelsToSort[i]));
+            image->SetPixel24AsInt(startingX + i, row, pixelsToSort[i]);
         }
 
         startingX = finishX + 1;
@@ -82,15 +81,16 @@ int main(){
     // TODO: handle command line args    
     BmpImage image;
 
-    string filename = "example.bmp";
+    string filename = ".bmp";
     if(!image.Load(filename)){
         cout << "File didn't load correctly!" << endl;
     }
 
-    sortPixels(&image);
+    sortPixelsCpu(&image);
 
     image.Save("example_sorted.bmp");
 
     return 0;
 }
 
+ 

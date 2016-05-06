@@ -169,6 +169,12 @@ void BmpImage::SetPixel24(int x, int y, RGBTRIPLE val)
 	memcpy(mBitmap + pozInArray, &val, sizeof(val));
 }
 
+void BmpImage::SetPixel24AsInt(int x, int y, int val)
+{	
+	RGBTRIPLE pixel = ParseIntToRgbTriple(val);
+	SetPixel24(x, y, pixel);
+}
+
 int BmpImage::GetWidth()
 {
 	if(mData.size() == 0)
