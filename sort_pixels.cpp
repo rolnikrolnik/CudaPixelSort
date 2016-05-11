@@ -3,6 +3,8 @@
 #include <string>
 #include "BmpImage.h"
 
+#define THRESHOLD 10010000
+
 using namespace std;
 
 int getNextInColor(BmpImage*, int, int, int);
@@ -12,8 +14,19 @@ void sortRow(BmpImage*, int);
 RGBTRIPLE blackRgb = { 0, 0, 0};
 RGBTRIPLE whiteRgb = { 255, 255, 255};
 
-// TODO: think about this threshold - wtf is going on
-int threshold = 10010000;
+void bubbleSort(int *pixelsToSort, int length){
+    for(int i = 0; i < length; i++ )
+    {
+        for(int j = 0; j < length-1; j++)
+        {
+            if( pixelsToSort[j] > pixelsToSort[j+1]){
+                int tmp = pixelsToSort[j];
+                pixelsToSort[j] = pixelsToSort[j+1];
+                pixelsToSort[j+1] = tmp;
+            }
+        }
+    }
+}
 
 void sortPixelsCpu(BmpImage *image){
     for (int i = 0; i < image->GetHeight(); ++i)
@@ -28,7 +41,6 @@ void sortRow(BmpImage *image, int row){
 
     while(finishX < image->GetWidth())
     {
-
         startingX = getFirstNotInColor(image, startingX, row, image->ParseRgbTripleToInt(whiteRgb));
         finishX = getNextInColor(image, startingX, row, image->ParseRgbTripleToInt(whiteRgb));
 
@@ -42,7 +54,7 @@ void sortRow(BmpImage *image, int row){
             pixelsToSort[i] = image->GetPixel24AsInt(startingX + i, row);
         }
 
-        sort(pixelsToSort, pixelsToSort + pixelsToSortLength);
+        bubbleSort(pixelsToSort, pixelsToSortLength);
 
         for (int i = 0; i < pixelsToSortLength; ++i)
         {
@@ -53,12 +65,11 @@ void sortRow(BmpImage *image, int row){
     }
 }
 
-// TODO: refactor those 2 methods to understand them better
 int getFirstNotInColor(BmpImage *image, int x, int row, int color){
     for (int i = x; i < image->GetWidth(); ++i)
     {
         int pixelValue = image->GetPixel24AsInt(i, row);
-        if(threshold < (color - pixelValue)){
+        if(THRESHOLD < (color - pixelValue)){
             return i;
         }
     }
@@ -69,7 +80,7 @@ int getNextInColor(BmpImage *image, int x, int row, int color){
     for (int i = x + 1; i < image->GetWidth(); ++i)
     {
         int pixelValue = image->GetPixel24AsInt(i, row);
-        if(threshold >= (color - pixelValue)){
+        if(THRESHOLD >= (color - pixelValue)){
             return i-1;
         }
     }
@@ -78,10 +89,9 @@ int getNextInColor(BmpImage *image, int x, int row, int color){
 
 int main(){
 
-    // TODO: handle command line args    
     BmpImage image;
 
-    string filename = ".bmp";
+    string filename = "example.bmp";
     if(!image.Load(filename)){
         cout << "File didn't load correctly!" << endl;
     }
