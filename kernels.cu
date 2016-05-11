@@ -17,10 +17,9 @@ __device__ void bubbleSort(int *pixelsToSort, int length){
 }
 
 __device__ int cudaGetFirstNotInColor(int *image, int x, int row, int imageWidth, int color){
-    for (int i = x; i < image->GetWidth(); ++i)
+    for (int i = x; i < imageWidth; ++i)
     {
-        int pixelValue = image[row*imageWidth + i];
-        if(THRESHOLD < (color - pixelValue)){
+        if(THRESHOLD < (color - image[row*imageWidth + i])){
             return i;
         }
     }
@@ -28,14 +27,13 @@ __device__ int cudaGetFirstNotInColor(int *image, int x, int row, int imageWidth
 }
 
 __device__ int cudaGetNextInColor(int *image, int x, int row, int imageWidth, int color){
-    for (int i = x + 1; i < image->GetWidth(); ++i)
+    for (int i = x + 1; i < imageWidth; ++i)
     {
-        int pixelValue = image[row*imageWidth + i];
-        if(THRESHOLD >= (color - pixelValue)){
+        if(THRESHOLD >= (color - image[row*imageWidth + i])){
             return i-1;
         }
     }
-    return image->GetWidth() - 1;
+    return imageWidth - 1;
 }
 
 __global__ void sortRows(int *image, int imageHeight, int imageWidth, int colorMode){
@@ -47,8 +45,8 @@ __global__ void sortRows(int *image, int imageHeight, int imageWidth, int colorM
 
         while(finishX < imageWidth)
         {
-            startingX = getFirstNotInColor(image, startingX, row, imageWidth, colorMode);
-            finishX = getNextInColor(image, startingX, row, imageWidth, colorMode);
+            startingX = cudaGetFirstNotInColor(image, startingX, row, imageWidth, colorMode);
+            finishX = cudaGetNextInColor(image, startingX, row, imageWidth, colorMode);
 
             if(startingX < 0)
                 break;
