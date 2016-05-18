@@ -1,6 +1,8 @@
 #include <cuda.h>
 
 #define THRESHOLD 10010000
+#define WARPSIZE  32
+#define SHAREDMEMSIZE 10144
 
 __device__ void bubbleSort(int pixelsToSort[512], int length){
     for(int i = 0; i < length; i++ )
@@ -73,14 +75,12 @@ __global__ void sortRows(int *image, int imageHeight, int imageWidth, int colorM
 }
 
 __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, int colorMode){
-    
-    __shared__ int pixelsToSort[512];
-
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     if(row < imageHeight)
     {
         int startingX = 0;
         int finishX = 0;
+        int *pixelsToSort = new int[1024];
 
         while(finishX < imageWidth)
         {
@@ -91,7 +91,10 @@ __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, i
                 break;
 
             int pixelsToSortLength = finishX - startingX;
-            //int *pixelsToSort = new int[pixelsToSortLength];
+            if(pixelsToSortLength > 1024){
+                pixelsToSortLength = 1024;
+            }
+            
             for (int i = 0; i < pixelsToSortLength; ++i)
             {
                 pixelsToSort[i] = image[row*imageWidth + startingX + i];
@@ -101,11 +104,10 @@ __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, i
             {
                 for(int j = 0; j < pixelsToSortLength-1; j++)
                 {
-                    if(pixelsToSort[j] > pixelsToSort[j+1])
-                    {
-                        int tmp = pixelsToSort[j];
-                        pixelsToSort[j] = pixelsToSort[j+1];
-                        pixelsToSort[j+1] = tmp;
+                    if( pixelsToSort[j] > pixelsToSort[j+1]){
+                        pixelsToSort[j] = pixelsToSort[j] ^ pixelsToSort[j+1];
+                        pixelsToSort[j+1] = pixelsToSort[j] ^ pixelsToSort[j+1];
+                        pixelsToSort[j] = pixelsToSort[j] ^ pixelsToSort[j+1];
                     }
                 }
             }
@@ -117,5 +119,7 @@ __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, i
 
             startingX = finishX + 1;
         }
+
+        free(pixelsToSort);
     }
 }

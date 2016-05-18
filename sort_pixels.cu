@@ -1,5 +1,6 @@
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <cuda.h>
 #include "BmpImage.h"
 #include "kernels.cu"
@@ -11,63 +12,84 @@ using namespace std;
 RGBTRIPLE blackRgb = { 0, 0, 0};
 RGBTRIPLE whiteRgb = { 255, 255, 255};
 
-void sortPixelsGpu(BmpImage *image, int colorMode){
+string IntToString (int a)
+{
+    ostringstream temp;
+    temp<<a;
+    return temp.str();
+}
+
+void SavePixelsToIntArray(BmpImage *image, int *pixels, int imageHeight, int imageWidth)
+{
+    for (int row = 0; row < imageHeight; row++)
+    { 
+        for (int column = 0; column < imageWidth; column++)
+        {
+            pixels[row*imageWidth + column] = image->GetPixel24AsInt(column, row);
+        }
+    }
+}
+
+int SaveSortedPixelsToImage(BmpImage *image, int *pixels, int lastRow, int imageHeight, int imageWidth)
+{
+    for (int row = lastRow; row < imageHeight; row++)
+    { 
+        for (int column = 0; column < imageWidth; column++)
+        {
+            image->SetPixel24AsInt(column, row, pixels[row*imageWidth + column]);
+        }
+        lastRow = row;
+    }
+}
+
+void sortPixelsGpu(BmpImage *image, int colorMode, int blockSize, bool optimized){
     int *pixels_h, *pixels_d;
     int imageWidth = image->GetWidth();
     int imageHeight = image->GetHeight();
     int imageSize = image->GetSize();
-    
+    string timeInfo;
+    float timeElapsed = 0;
+
     // eventes to get time
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
  
+    int totalSize = imageSize * sizeof(int);
+    pixels_h = (int *)malloc(totalSize);
+    SavePixelsToIntArray(image, pixels_h, imageHeight, imageWidth);
 
 
-    int allocationSize = imageSize * sizeof(int);
+    cudaMalloc((void **) &pixels_d, totalSize);
+    cudaMemcpy(pixels_d, pixels_h, totalSize, cudaMemcpyHostToDevice);
+    int n_blocks = imageHeight/blockSize + (imageHeight%blockSize == 0 ? 0:1);
 
-    pixels_h = (int *)malloc(allocationSize);
-    cudaMalloc((void **) &pixels_d, allocationSize);
+    cout << "Blocks: " << n_blocks << endl;
+    cout << "Block size: " << blockSize << endl;
 
-    for (int row = 0; row < imageHeight; row++)
-    { 
-        for (int column = 0; column < imageWidth; column++)
-        {
-            pixels_h[row*imageWidth + column] = image->GetPixel24AsInt(column, row);
-        }
-    }
-
-    cudaMemcpy(pixels_d, pixels_h, allocationSize, cudaMemcpyHostToDevice);
-
-    int block_size = 128;
-    int n_blocks = imageHeight/block_size + (imageSize%block_size == 0 ? 0:1);
-
+    // invoking kernel and timing 
     cudaEventRecord(start);
-    optimizedSortRows<<< n_blocks, block_size >>> (pixels_d, imageHeight, imageWidth, colorMode);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-    { 
-        printf("Error: %s\n", cudaGetErrorString(err));
+
+    if(optimized)
+    {
+        optimizedSortRows<<< n_blocks, blockSize >>> (pixels_d, imageHeight, imageWidth, colorMode);
+        timeInfo = "Optimized kernel execution time: ";
     }
+    else
+    {
+        sortRows<<< n_blocks, blockSize >>> (pixels_d, imageHeight, imageWidth, colorMode);
+        timeInfo = "Kernel execution time: ";
+    }
+
     cudaEventRecord(stop);
 
-
-
-    cudaMemcpy(pixels_h, pixels_d, allocationSize, cudaMemcpyDeviceToHost);
+    cudaMemcpy(pixels_h, pixels_d, totalSize, cudaMemcpyDeviceToHost);
     
     cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+    cudaEventElapsedTime(&timeElapsed, start, stop);
+    cout << timeInfo << timeElapsed << "ms" << endl;
 
-    cout << "Kernel execution time: " << milliseconds << "ms" << endl;
-
-    for (int row = 0; row < imageHeight; row++)
-    { 
-        for (int column = 0; column < imageWidth; column++)
-        {
-            image->SetPixel24AsInt(column, row, pixels_h[row*imageWidth + column]);
-        }
-    }
+    SaveSortedPixelsToImage(image, pixels_h, imageHeight, imageWidth);
 
     free(pixels_h);
     cudaFree(pixels_d);
@@ -81,15 +103,33 @@ int main(int argc, char *argv[]){
 
     BmpImage image;
     string filename = argv[1];
-    if(!image.Load(filename)){
-        cout << "File didn't load correctly!" << endl;
-        return 1;
+    int blockSizes[5] = {1, 16, 64, 128, 256};
+
+    cudaSetDevice(0);
+
+    for (int i = 0; i < 5; ++i)
+    {
+        cout << "----------------TEST RUN FOR BLOCKSIZE: " << blockSizes[i] << "----------------" << endl;
+        if(!image.Load(filename))
+        {
+            cout << "File didn't load correctly!" << endl;
+            return 1;
+        }
+
+        sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSizes[i], false);
+        string sortedfile = IntToString(blockSizes[i]) + "_" + filename;
+        image.Save(sortedfile);
+
+        if(!image.Load(filename))
+        {
+            cout << "File didn't load correctly!" << endl;
+            return 1;
+        }
+
+        sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSizes[i], true);
+        string optimizedSortedfile = IntToString(blockSizes[i]) + "_optimized_" + filename;
+        image.Save(optimizedSortedfile);
     }
-
-    sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb));
-
-    string sortedfile = "sorted_" + filename;
-    image.Save(sortedfile);
 
     return 0;
 }
