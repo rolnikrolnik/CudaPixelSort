@@ -2,7 +2,7 @@
 
 #define THRESHOLD 10010000
 
-__device__ void bubbleSort(int *pixelsToSort, int length){
+__device__ void bubbleSort(int pixelsToSort[512], int length){
     for(int i = 0; i < length; i++ )
     {
         for(int j = 0; j < length-1; j++)
@@ -59,6 +59,56 @@ __global__ void sortRows(int *image, int imageHeight, int imageWidth, int colorM
             }
 
             bubbleSort(pixelsToSort, pixelsToSortLength);
+
+            for (int i = 0; i < pixelsToSortLength; ++i)
+            {
+                image[row*imageWidth + startingX + i] = pixelsToSort[i];
+            }
+
+            startingX = finishX + 1;
+
+            free(pixelsToSort);
+        }
+    }
+}
+
+__global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, int colorMode){
+    
+    __shared__ int pixelsToSort[512];
+
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if(row < imageHeight)
+    {
+        int startingX = 0;
+        int finishX = 0;
+
+        while(finishX < imageWidth)
+        {
+            startingX = cudaGetFirstNotInColor(image, startingX, row, imageWidth, colorMode);
+            finishX = cudaGetNextInColor(image, startingX, row, imageWidth, colorMode);
+
+            if(startingX < 0)
+                break;
+
+            int pixelsToSortLength = finishX - startingX;
+            //int *pixelsToSort = new int[pixelsToSortLength];
+            for (int i = 0; i < pixelsToSortLength; ++i)
+            {
+                pixelsToSort[i] = image[row*imageWidth + startingX + i];
+            }
+
+            for(int i = 0; i < pixelsToSortLength; i++ )
+            {
+                for(int j = 0; j < pixelsToSortLength-1; j++)
+                {
+                    if(pixelsToSort[j] > pixelsToSort[j+1])
+                    {
+                        int tmp = pixelsToSort[j];
+                        pixelsToSort[j] = pixelsToSort[j+1];
+                        pixelsToSort[j+1] = tmp;
+                    }
+                }
+            }
 
             for (int i = 0; i < pixelsToSortLength; ++i)
             {
