@@ -81,7 +81,6 @@ __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, i
         int startingX = 0;
         int finishX = 0;
         int *pixelsToSort = new int[1024];
-
         while(finishX < imageWidth)
         {
             startingX = cudaGetFirstNotInColor(image, startingX, row, imageWidth, colorMode);
@@ -90,11 +89,8 @@ __global__ void optimizedSortRows(int *image, int imageHeight, int imageWidth, i
             if(startingX < 0)
                 break;
 
-            int pixelsToSortLength = finishX - startingX;
-            if(pixelsToSortLength > 1024){
-                pixelsToSortLength = 1024;
-            }
-            
+            int pixelsToSortLength = (finishX - startingX < 1024) ? finishX - startingX : 1024;
+
             for (int i = 0; i < pixelsToSortLength; ++i)
             {
                 pixelsToSort[i] = image[row*imageWidth + startingX + i];
