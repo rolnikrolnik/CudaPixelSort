@@ -110,6 +110,7 @@ void sortPixelsGpu(BmpImage *image, int colorMode, int blockSize, int chunkSize,
         cudaFree(pixels_d);
 
         rowsRemaining -= currentRows;
+        iteration++;
     }
 
     SaveSortedPixelsToImage(image, pixels_h, imageHeight, imageWidth);
@@ -121,41 +122,36 @@ void sortPixelsGpu(BmpImage *image, int colorMode, int blockSize, int chunkSize,
 
 int main(int argc, char *argv[]){
     if(argc < 5){
-        cout << "Not enough arguments - example call: apl_project <filename> <onlyOptimized> <blockSize> <chunkSize>" << endl;
+        cout << "Not enough arguments - example call: apl_project <filename> <optimized> <blockSize> <chunkSize>" << endl;
         return 1;
     }
 
     BmpImage image;
     string filename = argv[1];
-    int onlyOptimized = StringToInt(argv[2]);
+    int optimized = StringToInt(argv[2]);
     int blockSize = StringToInt(argv[3]);
     int chunkSize = StringToInt(argv[4]);
 
     cudaSetDevice(0);
 
     cout << "----------------TEST RUN FOR BLOCKSIZE: " << blockSize << "----------------" << endl;
-    if(!onlyOptimized)
-    {
-        if(!image.Load(filename))
-        {
-            cout << "File didn't load correctly!" << endl;
-            return 1;
-        }
-
-        sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSize, chunkSize, false);
-        string sortedfile = IntToString(blockSize) + "_" + filename;
-        image.Save(sortedfile);
-    }
-
     if(!image.Load(filename))
     {
         cout << "File didn't load correctly!" << endl;
         return 1;
     }
-
-    sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSize, chunkSize, true);
-    string optimizedSortedfile = IntToString(blockSize) + "_optimized_" + filename;
-    image.Save(optimizedSortedfile);
+    if(optimized)
+    {
+        sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSize, chunkSize, true);
+        string optimizedSortedfile = IntToString(blockSize) + "_optimized_" + filename;
+        image.Save(optimizedSortedfile);
+    }
+    else
+    {
+        sortPixelsGpu(&image, image.ParseRgbTripleToInt(whiteRgb), blockSize, chunkSize, false);
+        string sortedfile = IntToString(blockSize) + "_" + filename;
+        image.Save(sortedfile);
+    }
 
     return 0;
 }
